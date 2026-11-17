@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         AWS_REGION = 'ap-south-1'
-        REGISTRY   = '779846789022.dkr.ecr.ap-south-1.amazonaws.com'
+        REGISTRY   = '992382548835.dkr.ecr.ap-south-1.amazonaws.com'
         TAG        = "${BUILD_NUMBER}"
     }
 

@@ -6,7 +6,7 @@ terraform {
 
 provider "aws" {
   region              = "ap-south-1"
-  allowed_account_ids = ["779846789022"]
+  allowed_account_ids = ["992382548835"]
 }
 
 resource "aws_ecr_repository" "repo" {
