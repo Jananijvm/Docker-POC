@@ -1,0 +1,68 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_REGION = 'ap-south-1'
+        REGISTRY   = '779846789022.dkr.ecr.ap-south-1.amazonaws.com'
+        TAG        = "${BUILD_NUMBER}"
+    }
+
+    stages {
+        stage('Terraform Init') {
+            steps {
+                withCredentials([aws(credentialsId: 'aws-creds')]) {
+                    sh 'mkdir -p /var/jenkins_home/tfstate'
+                    dir('terraform') { sh 'terraform init -input=false' }
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                withCredentials([aws(credentialsId: 'aws-creds')]) {
+                    dir('terraform') { sh 'terraform plan -input=false -out=tfplan' }
+                }
+            }
+        }
+
+        stage('Approve') {
+            steps {
+                input message: 'Apply Terraform plan?', ok: 'Apply'
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                withCredentials([aws(credentialsId: 'aws-creds')]) {
+                    dir('terraform') { sh 'terraform apply -input=false tfplan' }
+                }
+            }
+        }
+
+        stage('Build Images') {
+            steps {
+                sh 'docker build -t api:$TAG ./api'
+                sh 'docker build -t frontend:$TAG ./frontend'
+            }
+        }
+
+        stage('Login to ECR') {
+            steps {
+                withCredentials([aws(credentialsId: 'aws-creds')]) {
+                    sh 'aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $REGISTRY'
+                }
+            }
+        }
+
+        stage('Tag & Push') {
+            steps {
+                sh '''
+                  for img in api frontend; do
+                    docker tag $img:$TAG $REGISTRY/$img:$TAG
+                    docker push $REGISTRY/$img:$TAG
+                  done
+                '''
+            }
+        }
+    }
+}
