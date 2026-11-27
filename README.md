@@ -115,3 +115,40 @@ API container  ◀── DB_HOST       (network access)   DB_PASSWORD
 
 In this POC, the API creates the `items` table at startup (`init_db()` in `app.py`). This is a shortcut.
 In industry, tables are created and changed with **database migrations**: versioned SQL files kept in Git (e.g. **Alembic** for Flask), run as a CI/CD step before deploying a new API version. Changes are not made by hand in Workbench.
+
+
+Issues FIXED:
+
+
+What actually happened
+Your laptop's AWS CLI was logged in with temporary credentials (access key + secret + session token). Temporary credentials expire after a few hours.
+When we set up Jenkins to run Terraform and push to ECR, those credentials were the wrong choice. The pipeline failed with ExpiredToken.
+They also belonged to a different AWS account, not the one meant for this project.
+Fix:
+Created a dedicated IAM user jenkins-poc in your personal AWS account.
+Gave it only ECR permissions (least privilege), not admin.
+Stored its keys only in Jenkins Credentials (aws-creds), never in GitHub or the Jenkinsfile.
+Used withCredentials in the Jenkinsfile so the keys are injected only at run time.
+Added allowed_account_ids in Terraform so it can never run against the wrong account by mistake.
+Result: the pipeline ran successfully, created the ECR repos and pushed both images.
+How to tell it in an interview (STAR)
+Situation: "In my Docker project, Jenkins had to run Terraform and push images to AWS ECR."
+
+Task: "The pipeline kept failing with an ExpiredToken error, and I had to fix the authentication properly."
+
+Action: "I found that the AWS credentials were temporary STS credentials, which expire, and they also belonged to the wrong account. I created a dedicated IAM user with only ECR permissions, stored the keys securely in Jenkins Credentials, used withCredentials in the pipeline, and added allowed_account_ids in Terraform as a safety check so it can't deploy to the wrong account."
+
+Result: "The pipeline became stable. Terraform created the ECR repos and the images were pushed successfully, with no secrets in code and least-privilege access."
+
+Add this at the end (it impresses interviewers)
+"In production, I would avoid long-term access keys and use an IAM role: an instance role if Jenkins runs on EC2, or OIDC for GitHub Actions. That gives temporary credentials that rotate automatically."
+
+This shows you know the best practice, not just the quick fix.
+
+Situation: "In my Docker project, Jenkins had to run Terraform and push images to AWS ECR."
+Task: "The pipeline kept failing with an ExpiredToken error, and I had to fix the authentication properly."
+Action: "I found that the AWS credentials were temporary STS credentials, which expire, and they also belonged to the wrong account. I created a dedicated IAM user with only ECR permissions, stored the keys securely in Jenkins Credentials, used withCredentials in the pipeline, and added allowed_account_ids in Terraform as a safety check so it can't deploy to the wrong account."
+Result: "The pipeline became stable. Terraform created the ECR repos and the images were pushed successfully, with no secrets in code and least-privilege access."
+
+
+"In production, I would avoid long-term access keys and use an IAM role: an instance role if Jenkins runs on EC2, or OIDC for GitHub Actions. That gives temporary credentials that rotate automatically.
